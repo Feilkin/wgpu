@@ -1163,9 +1163,21 @@ impl BlockContext<'_> {
                                 }
                                 (Dimension::Vector, Dimension::Vector)
                                 | (Dimension::Scalar, Dimension::Scalar) => spirv::Op::IMul,
-                                (Dimension::CooperativeMatrix, Dimension::CooperativeMatrix)
-                                //Note: technically can do `FMul` but IR doesn't have matrix per-component multiplication
-                                | (Dimension::CooperativeMatrix, _)
+                                // Component-wise coop matrix * coop matrix.
+                                (Dimension::CooperativeMatrix, Dimension::CooperativeMatrix) => {
+                                    match left_ty_inner.scalar_kind() {
+                                        Some(crate::ScalarKind::Float) => spirv::Op::FMul,
+                                        Some(
+                                            crate::ScalarKind::Sint | crate::ScalarKind::Uint,
+                                        ) => spirv::Op::IMul,
+                                        _ => {
+                                            return Err(Error::Validation(
+                                                "unsupported coop-matrix component multiply",
+                                            ))
+                                        }
+                                    }
+                                }
+                                (Dimension::CooperativeMatrix, _)
                                 | (_, Dimension::CooperativeMatrix) => {
                                     unimplemented!()
                                 }
@@ -2296,6 +2308,42 @@ impl BlockContext<'_> {
             ));
 
             return Ok(construct_id);
+        }
+
+        // Cooperative matrices convert component-wise with a single conversion
+        // instruction operating on the whole value (unlike `Matrix` above, which
+        // has no per-column SPIR-V conversion and must be done column by column).
+        if let crate::TypeInner::CooperativeMatrix {
+            scalar: src_scalar, ..
+        } = *ty
+        {
+            let dst_scalar = crate::Scalar {
+                kind,
+                width: convert.unwrap_or(src_scalar.width),
+            };
+            if dst_scalar == src_scalar {
+                // No conversion needs to be done, passes through.
+                return Ok(expr_id);
+            }
+            let op = match (src_scalar.kind, kind) {
+                (Sk::Sint, Sk::Float) => spirv::Op::ConvertSToF,
+                (Sk::Uint, Sk::Float) => spirv::Op::ConvertUToF,
+                (Sk::Float, Sk::Sint) => spirv::Op::ConvertFToS,
+                (Sk::Float, Sk::Uint) => spirv::Op::ConvertFToU,
+                (Sk::Float, Sk::Float) => spirv::Op::FConvert,
+                (Sk::Sint, Sk::Sint) | (Sk::Uint, Sk::Sint) => spirv::Op::SConvert,
+                (Sk::Uint, Sk::Uint) | (Sk::Sint, Sk::Uint) => spirv::Op::UConvert,
+                _ => {
+                    return Err(Error::Validation(
+                        "unsupported coop-matrix scalar conversion",
+                    ))
+                }
+            };
+            let id = self.gen_id();
+            block
+                .body
+                .push(Instruction::unary(op, result_type_id, id, expr_id));
+            return Ok(id);
         }
 
         let (src_scalar, src_size) = match *ty {

@@ -764,6 +764,20 @@ impl<'a> ResolveContext<'a> {
                         scalar,
                     })
                 }
+                Ti::CooperativeMatrix {
+                    columns,
+                    rows,
+                    role,
+                    scalar: crate::Scalar { width, .. },
+                } => TypeResolution::Value(Ti::CooperativeMatrix {
+                    columns,
+                    rows,
+                    role,
+                    scalar: crate::Scalar {
+                        kind,
+                        width: convert.unwrap_or(width),
+                    },
+                }),
                 ref other => {
                     return Err(ResolveError::IncompatibleOperands(format!(
                         "{other:?} as {kind:?}"

@@ -263,6 +263,24 @@ impl<'source> Lowerer<'source, '_> {
                 };
             }
 
+            // Cooperative-matrix conversion via a scalar constructor, e.g.
+            // `f32(coop_mat<i32>)`: converts each component to the scalar's
+            // kind/width, preserving the matrix's columns/rows/role.
+            (
+                Components::One {
+                    component,
+                    ty_inner: &crate::TypeInner::CooperativeMatrix { .. },
+                    ..
+                },
+                Constructor::Type((_, &crate::TypeInner::Scalar(dst_scalar))),
+            ) => {
+                expr = crate::Expression::As {
+                    expr: component,
+                    kind: dst_scalar.kind,
+                    convert: Some(dst_scalar.width),
+                };
+            }
+
             // Matrix conversion (matrix -> matrix) - partial
             (
                 Components::One {

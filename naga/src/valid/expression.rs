@@ -972,6 +972,11 @@ impl super::Validator {
                             | (&Ti::CooperativeMatrix { scalar: s1, .. }, &Ti::Scalar(s2)) => {
                                 s1 == s2
                             }
+                            // Component-wise coop matrix * coop matrix.
+                            (
+                                &Ti::CooperativeMatrix { .. },
+                                &Ti::CooperativeMatrix { .. },
+                            ) => left_inner == right_inner,
                             _ => false,
                         };
                         let left_width = left_inner.scalar_width().unwrap_or(0);
@@ -1248,6 +1253,7 @@ impl super::Validator {
                         scalar
                     }
                     crate::TypeInner::Matrix { scalar, .. } => scalar,
+                    crate::TypeInner::CooperativeMatrix { scalar, .. } => scalar,
                     _ => return Err(ExpressionError::InvalidCastArgument),
                 };
                 base_scalar.kind = kind;
