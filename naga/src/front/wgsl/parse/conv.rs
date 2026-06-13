@@ -459,6 +459,8 @@ pub fn map_predeclared_type(
         "i64" => Ti::Scalar(Sc::I64).into(),
         "u64" => Ti::Scalar(Sc::U64).into(),
         "f64" => Ti::Scalar(Sc::F64).into(),
+        "i8" => Ti::Scalar(Sc::I8).into(),
+        "u8" => Ti::Scalar(Sc::U8).into(),
         // vector aliases
         "vec2i" => Ti::Vector { size: Vs::Bi,   scalar: Sc::I32 }.into(),
         "vec3i" => Ti::Vector { size: Vs::Tri,  scalar: Sc::I32 }.into(),

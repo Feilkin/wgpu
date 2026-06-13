@@ -31,6 +31,14 @@ impl crate::Scalar {
         kind: crate::ScalarKind::Uint,
         width: 4,
     };
+    pub const I8: Self = Self {
+        kind: crate::ScalarKind::Sint,
+        width: 1,
+    };
+    pub const U8: Self = Self {
+        kind: crate::ScalarKind::Uint,
+        width: 1,
+    };
     pub const F16: Self = Self {
         kind: crate::ScalarKind::Float,
         width: 2,

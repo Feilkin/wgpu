@@ -325,7 +325,7 @@ impl super::Validator {
                     }
                     true
                 } else {
-                    scalar.width == 4
+                    scalar.width == 4 || scalar.width == 1
                 }
             }
             crate::ScalarKind::Uint => {
@@ -338,7 +338,7 @@ impl super::Validator {
                     }
                     true
                 } else {
-                    scalar.width == 4
+                    scalar.width == 4 || scalar.width == 1
                 }
             }
             crate::ScalarKind::AbstractInt | crate::ScalarKind::AbstractFloat => {
@@ -434,11 +434,17 @@ impl super::Validator {
                 role: _,
             } => {
                 self.require_type_capability(Capabilities::COOPERATIVE_MATRIX)?;
-                // Allow f16 (width 2) and f32 (width 4) for cooperative matrices
-                if scalar.kind != crate::ScalarKind::Float
-                    || (scalar.width != 2 && scalar.width != 4)
-                {
-                    return Err(TypeError::MatrixElementNotFloat);
+                // f16/f32 floats; i8/u8 operands and i32/u32 accumulators (the
+                // box's coopmat configs: SINT8/UINT8 A/B → SINT32/UINT32 C).
+                let ok = match scalar.kind {
+                    crate::ScalarKind::Float => scalar.width == 2 || scalar.width == 4,
+                    crate::ScalarKind::Sint | crate::ScalarKind::Uint => {
+                        scalar.width == 1 || scalar.width == 4
+                    }
+                    _ => false,
+                };
+                if !ok {
+                    return Err(TypeError::MatrixElementNotFloat); // (name now stale; fine)
                 }
                 TypeInfo::new(
                     TypeFlags::DATA

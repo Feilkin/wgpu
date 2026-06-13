@@ -2174,6 +2174,20 @@ impl BlockContext<'_> {
                     "CooperativeMatrix",
                     &[spirv::Capability::CooperativeMatrixKHR],
                 )?;
+                // Integer MulAdd must declare component signedness; float omits it.
+                let operands = match *self.fun_info[c].ty.inner_with(&self.ir_module.types) {
+                    crate::TypeInner::CooperativeMatrix { scalar, .. }
+                        if scalar.kind == crate::ScalarKind::Sint =>
+                    {
+                        Some(
+                            spirv::CooperativeMatrixOperands::MATRIX_A_SIGNED_COMPONENTS_KHR
+                                | spirv::CooperativeMatrixOperands::MATRIX_B_SIGNED_COMPONENTS_KHR
+                                | spirv::CooperativeMatrixOperands::MATRIX_C_SIGNED_COMPONENTS_KHR
+                                | spirv::CooperativeMatrixOperands::MATRIX_RESULT_SIGNED_COMPONENTS_KHR,
+                        )
+                    }
+                    _ => None,
+                };
                 let a_id = self.cached[a];
                 let b_id = self.cached[b];
                 let c_id = self.cached[c];
@@ -2184,6 +2198,7 @@ impl BlockContext<'_> {
                     a_id,
                     b_id,
                     c_id,
+                    operands,
                 ));
                 id
             }
